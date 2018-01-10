@@ -27,11 +27,12 @@ def strip_and_split_sen(line):
 
 def read_sentences_from_annotated(fname,):
     for line in codecs.open(fname, encoding="utf8"):
-        sent_id = line.strip().split("\t")[0]
+        line1 = line.strip().split("\t")
+        sent_title = "\t".join([line1[0], line1[1], line1[2], line1[3]])
         sent  = line[line.find("(") + 1:line.find(")")]
         sent = sent.replace("-LRB-", "(")
         sent = sent.replace("-RRB-", ")")
-        yield sent_id, sent
+        yield sent_title, sent
 
 
 def save_file(outfile,predictions):
@@ -51,8 +52,10 @@ def save_html(lines,file):
 if __name__=="__main__":
     lines =[]
     for i, st in enumerate(read_sentences_from_annotated(sys.argv[1])):
-        sent_id , sent_str = st
-        lines.append( nlp(sent_str))
+        sent_title , sent_str = st
+        nlpline = nlp(sent_str)
+        nlpline.user_data = {'title': sent_title}
+        lines.append(nlpline)
         # for word in sent:
         #     head_id = str(word.head.i+1)        # we want ids to be 1 based
         #     if word == word.head:               # and the ROOT to be 0.
@@ -66,5 +69,5 @@ if __name__=="__main__":
     # html = displacy.render(lines, style='dep', page=True)
     #
     # open("out/dep.html",'w').write(html)
-    save_html(lines)
+    save_html(lines,"temp/min.html")
 
