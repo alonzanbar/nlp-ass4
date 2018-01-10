@@ -8,14 +8,17 @@ PERSON = 'PERSON'
 LOCTATION_STRS = ['LOC','GPE']
 
 
-def traverse_person(word):
-    tempwrod = word
-    while(tempwrod.dep_!='ROOT'):
-        tempwrod = tempwrod.head
-        if tempwrod.ent_type_== ('%s' % PERSON):
-            return tempwrod
-        elif tempwrod.ent_type_:
-            return None
+def find_anch_ent_type(sent,word,child_types,entType,dis=20):
+    if not (word.ent_type_ in child_types):
+        return None
+    ancs = word.ancestors
+    for anc in ancs:
+        if anc.ent_type_ in entType:
+            if abs(word.i-anc.i)<dis:
+                for ent in sent.ents:
+                    if ent.root == anc:
+                        return ent
+
     return None
 
 
@@ -24,13 +27,16 @@ def predict(infile):
     for sent_id,sent_str in read_lines(infile):
         sent = nlp(sent_str)
         for ne in sent.ents:
-            if ne.root.ent_type_   in LOCTATION_STRS:
-                w_relation = traverse_person(ne.root)
-                if w_relation:
-                    for ent in sent.ents:
-                        if ent.root == w_relation:
-                            predictions.append((sent_id, "\t".join([ent.text, LIVE_IN, ne.text])))
-                            break
+
+
+            w_relation = find_anch_ent_type(sent,ne.root,LOCTATION_STRS,[PERSON],10)
+            if w_relation:
+                predictions.append((sent_id, "\t".join([w_relation.text, LIVE_IN, ne.text, "( " + sent_str + " )"])))
+
+            w_relation = find_anch_ent_type(sent,ne.root,PERSON,LOCTATION_STRS,2)
+            if w_relation:
+                predictions.append((sent_id, "\t".join([ne.text, LIVE_IN, w_relation.text, "( " + sent_str + " )"])))
+
 
     return predictions
 
