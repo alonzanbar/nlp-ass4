@@ -26,7 +26,7 @@ def strip_and_split_sen(line):
 
 
 def read_sentences_from_annotated(fname,):
-    for line in codecs.open(fname, encoding="utf8"):
+    for line in open(fname):
         line1 = line.strip().split("\t")
         sent_title = "\t".join([line1[0], line1[1], line1[2], line1[3]])
         sent  = line[line.find("(") + 1:line.find(")")]
