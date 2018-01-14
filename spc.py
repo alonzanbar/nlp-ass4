@@ -27,12 +27,17 @@ def strip_and_split_sen(line):
 
 def read_sentences_from_annotated(fname,):
     for line in open(fname):
-        line1 = line.strip().split("\t")
-        sent_title = "\t".join([line1[0], line1[1], line1[2], line1[3]])
-        sent  = line[line.find("(") + 1:line.find(")")]
-        sent = sent.replace("-LRB-", "(")
-        sent = sent.replace("-RRB-", ")")
+        sent_title,sent = read_annotated_line(line)
         yield sent_title, sent
+
+
+def read_annotated_line(line):
+    line1 = line.strip().split("\t")
+    sent_title = "\t".join([line1[0], line1[1], line1[2], line1[3]])
+    sent = line[line.find("(") + 1:line.find(")")]
+    sent = sent.replace("-LRB-", "(")
+    sent = sent.replace("-RRB-", ")")
+    return sent_title,sent
 
 
 def save_file(outfile,predictions):
@@ -66,7 +71,7 @@ if __name__=="__main__":
         # print "#", Noun Chunks:
         # for np in sent.noun_chunks:
         #    print(np.text, np.root.text, np.root.dep_, np.root.head.text)
-    # html = displacy.render(lines, style='dep', page=True)
+    html = displacy.render(lines, style='dep', page=True)
     #
     # open("out/dep.html",'w').write(html)
     save_html(lines,"temp/min.html")
