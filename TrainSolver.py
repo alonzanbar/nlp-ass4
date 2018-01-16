@@ -15,7 +15,7 @@ from utils import load_map, convert_features
 def train_model(in_file):
     X, Y = load_svmlight_file(in_file)
 
-    model = LogisticRegression(max_iter=pred_str)
+    model = LogisticRegression(max_iter=1000)
     model.fit(X, Y)
     correct=0.0
     for v,x in enumerate(X):

@@ -1,16 +1,17 @@
+import re
 import sys
 
+import itertools
 import networkx
 import networkx as nx
 from spacy.matcher import Matcher
 
-from spc import read_sentences_from_annotated, nlp
+from spc import read_sentences_from_annotated, nlp, read_annotated_line
 from parse_tree_utils import get_parse_tree_path
 
 PERSON = 'PERSON'
 
-LOCTATION_STRS = ['LOC','GPE']
-
+LOCTATION_STRS = ['LOC','GPE','NORP']
 
 def extract_features(pair,graph,doc):
     features={}
@@ -20,11 +21,19 @@ def extract_features(pair,graph,doc):
     features['entity2-type'] = en2.label_
     features['entity2-head'] = en2.root
     features['concatenatedtypes'] = en1.label_+en2.label_
-
-    features['between-entities-words'] = "-".join([token.text for token in doc[en1.end+1:en2.start]])
-
-    features['word-before-entity1']  = doc[en1.start-1] if en1.start>0 else 'None'
-    features['word-after-entity2'] = doc[en2.end] if en2.end < len(doc) else 'None'
+    features['between-entities-word']=[]
+    if en1.start<en2.start:
+        start = en1.end+1
+        end = en2.start
+    else:
+        start = en2.end + 1
+        end = en1.start
+    words_set=set([t.text for t in doc[start:end]])
+    for i,w  in enumerate(words_set):
+        features['between-entities-word'].append(w)
+    #features['between-entities-words'] = "-".join([token.text for token in doc[en1.end+1:en2.start]])
+    features['word-before-entity1']  = doc[en1.start-1].text if en1.start>0 else 'None'
+    features['word-after-entity2'] = doc[en2.end].text if en2.end < len(doc) else 'None'
     path=None
     try:
         path  = nx.shortest_path(graph, source=doc[en1.start].i, target=doc[en2.end-1].i)
@@ -34,6 +43,7 @@ def extract_features(pair,graph,doc):
         dep_map, typed_dep_map = extract_dep_map(doc, path)
         #features['dep-path-typed'] = "-".join(typed_dep_map)
         features['dep-path'] = "-".join(dep_map)
+        features['dis_ent_distance'] = len(path)
     #features['base-syntatic-path'] = "-".join([token.tag_ for token in doc[en1.end+1:en2.start]])
     features['consitutient_path'] = "-".join(get_parse_tree_path(doc.text,en1.root.text,en2.root.text))
 
@@ -77,18 +87,23 @@ def format_token(token):
 def process_file(infile):
     samples=[]
     for sent_title, sent_str in read_sentences_from_annotated(infile):
-        samples.extend(extract_sentence(sent_title,sent_str,True))
+        if sent_title.split("\t")[2]=="Live_In":
+            samples.extend(extract_sentence(sent_title.strip(),sent_str.strip(),True))
     return samples
 
 
 def extract_sentence(sent_title,sent_str,supervised=False):
+
     doc = nlp(unicode(sent_str))
     if supervised:
         pairs= get_TRAIN_pairs(doc, sent_title)
     else:
         pairs = get_DEV_pairs(doc, sent_title)
-    samples = extract_features_pairs(doc, pairs)
-    return samples
+    if pairs:
+        samples = extract_features_pairs(doc, pairs)
+        return samples
+    else:
+        return []
 
 
 def extract_features_pairs(doc, pairs):
@@ -99,7 +114,13 @@ def extract_features_pairs(doc, pairs):
         if not pair[0] or not pair[1] or not pair[0].root.text.strip() or not pair[1].root.text.strip():
             continue
         features_dict = extract_features(pair, tag_graph, doc)
-        features = ["{0}={1}".format(k, v) for k, v in features_dict.items()]
+        features=[]
+        for k, v in features_dict.items():
+            if isinstance(v,list):
+                for it in v:
+                    features.append("{0}={1}".format(k, it))
+            else:
+                features.append("{0}={1}".format(k, v))
         samples.append((label, features))
     return samples
 
@@ -116,29 +137,31 @@ def get_TRAIN_pairs(doc, sent_title):
     PERSON_ID = nlp.vocab.strings[PERSON]
     LOCATION_ID = nlp.vocab.strings[LOCTATION_STRS[0]]
 
-    matcher.add('person_ent', lambda macher,doc,i, matches: replace_en(doc,i,matches,PERSON_ID),
-                [{'ORTH': k} for k in person_ent.split(" ")])
-
-    matcher.add('location_ent', lambda macher,doc,i, matches: replace_en(doc,i,matches,LOCATION_ID),
-                [{'ORTH': k} for k in loc_en.split(" ")])
-
-    matcher(doc)
+    replace_en(doc,person_ent,PERSON_ID)
+    replace_en(doc, loc_en, LOCATION_ID)
     def search_pairs():
         pairs = []
         neg = 0
         pos = 0
-        for ne1 in doc.ents:
-            for ne2 in doc.ents:
-                if pos == 1 and neg > 1:
-                    return pairs
-                if (ne1.label_ == PERSON and ne2.label_ in LOCTATION_STRS):
-                    if ne1.text == person_ent and ne2.text == loc_en:
-                        pos = 1
-                        pairs.append(([ne1, ne2], 1))
-                    elif neg<2:
-                        neg +=1
-                        pairs.append(([ne1,ne2],0))
+        per_ents=[]
+        loc_ents=[]
+        for en in doc.ents:
+            if en.label_ == PERSON or en.text == person_ent: per_ents.append(en)
+            if en.label_ in LOCTATION_STRS or en.text==loc_en : loc_ents.append(en)
+        all_pairs = list(itertools.product(per_ents, loc_ents))
+
+        for ne1,ne2 in all_pairs:
+            if pos == 1 and neg > 1:
+                return pairs
+            if (ne1.text == person_ent and ne2.text == loc_en) :
+                pos = 1
+                pairs.append(([ne1, ne2], 1))
+            elif neg<2:
+                neg +=1
+                pairs.append(([ne1,ne2],0))
         print(pos,neg)
+        if pos==0:
+            pass
         return pairs
     pairs= search_pairs()
 
@@ -147,21 +170,31 @@ def get_TRAIN_pairs(doc, sent_title):
 def get_DEV_pairs(doc, sent_title):
     pairs=[]
     sent_id, person_ent, rel, loc_en = sent_title.split("\t")
-    for ne1 in doc.ents:
-        for ne2 in doc.ents:
-            if (ne1.label_ == PERSON and ne2.label_ in LOCTATION_STRS):
-                if ne1.text == person_ent and ne2.text == loc_en:
-                    pairs.append(([ne1,ne2],1))
-                else:
-                    pairs.append(([ne1, ne2],0))
+    all_pairs = list(itertools.product(doc.ents, doc.ents))
+    for ne1, ne2 in all_pairs:
+        if (ne1.label_ in [PERSON, 'ORG'] and ne2.label_ in LOCTATION_STRS):
+            if (ne1.text == person_ent and ne2.text == loc_en):
+                pairs.append(([ne1, ne2], 1))
+            else:
+                pairs.append(([ne1, ne2], 0))
     return pairs
 
-def replace_en(doc, i, matches,label):
-    match_id, start, end = matches[i]
+
+def replace_en(doc,str,label):
+    gold_words  = re.split(' |-',str)
+    sent_words = [w.text for w in doc]
+    try:
+        start, end  = sent_words.index(gold_words[0]),sent_words.index(gold_words[len(gold_words)-1])+1
+    except ValueError:
+        return
+    span = None
     for en in doc.ents:
-        if en.start==start and en.end==end:
+        if en.start==start or en.end==end:
+            span=en
             break
-    doc.ents = [e for e in doc.ents if e !=en]
+    if span:
+        doc.ents = [e for e in doc.ents if e !=span]
+        label = span.label
     doc.ents += ((label, start, end),)
 
 
