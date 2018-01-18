@@ -34,7 +34,7 @@ def extract_features_pairs(doc, pairs):
         features_dict = extract_features(pair, doc)
         features=[]
         for k, v in features_dict.items():
-            if isinstance(v,list):
+            if isinstance(v,set):
                 for it in v:
                     features.append("{0}={1}".format(k, it))
             else:

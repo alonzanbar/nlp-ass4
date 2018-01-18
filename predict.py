@@ -48,9 +48,8 @@ if __name__=="__main__":
     map_file_name = sys.argv[2]
     predict_file = sys.argv[3]
     test_file_name = sys.argv[4]
-    length =  sys.argv[5] if len(sys.argv)>5 else -1
-    length = int(length)
-    model = model = pickle.load(open(model_file_name, 'rb'))
+
+    model  = pickle.load(open(model_file_name, 'rb'))
     featuremap = load_map(map_file_name)
     total_preds,total_true,match,predictions  = predict(model)
     prec = match / total_preds
