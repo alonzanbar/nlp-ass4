@@ -1,11 +1,8 @@
 import codecs 
-import spacy 
-import sys
+import spacy
 from socket import *
 
-from pathlib import Path
 from spacy import displacy
-from spacy.displacy import parse_ents
 
 import render_ex
 from render_ex import EntityRendererEX
@@ -40,10 +37,7 @@ def read_annotated_line(line):
     return sent_title,sent
 
 
-def save_file(outfile,predictions):
-    with open(outfile,"w") as f :
-        for set_id,line in predictions:
-            f.writelines(set_id+"\t"+line+"\n")
+
 
 
 def save_html(lines,file):

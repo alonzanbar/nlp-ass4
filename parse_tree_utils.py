@@ -1,6 +1,20 @@
 import nltk
 from nltk.tag.stanford import CoreNLPNERTagger
+import logging
+import networkx as nx
+from networkx import exception
+import utils
 
+
+def build_graph(doc):
+    edges = []
+    for token in doc:
+        # FYI https://spacy.io/docs/api/token
+        for child in token.children:
+            edges.append((token.i,
+                          child.i))
+
+    return nx.Graph(edges)
 
 def get_parse_tree_path(sent_str,word1,word2):
     tagger = CoreNLPNERTagger(url='http://localhost:9000')
@@ -51,6 +65,30 @@ def find_leaf(pt, word):
             for child in c:
                 st.append(child)
 
+
+def extract_dep_map(en1,en2,doc, graph):
+    path = []
+    try:
+        path = nx.shortest_path(graph, source=en1.root.i, target=en2.root.i)
+    except (exception.NetworkXNoPath, exception.NodeNotFound) as e:
+        pass
+        logging.error(e.message)
+    typed_dep_map = []
+    dep_map = []
+    for i, token_id in enumerate(path):
+        token = doc[token_id]
+        level = []
+        dirc = 'up'
+        typed_dep_map.append(token.text)
+        if i > 0:
+            next_token = doc[path[i - 1]]
+            if token.head == next_token:
+                dirc = 'down'
+            level.append(dirc)
+            level.append(token.dep_)
+            dep_map.extend(level)
+            typed_dep_map.extend(level)
+    return dep_map, typed_dep_map
 
 if __name__=="__main__":
     sentences = 0

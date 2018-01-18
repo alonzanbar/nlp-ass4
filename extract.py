@@ -1,9 +1,6 @@
 import sys
 
-from nltk import Tree, word_tokenize, pos_tag, ne_chunk
-
-from CoreNLPNer import getStanfordEnts
-from spc import read_lines, nlp, save_file
+from temp_code.spc import read_lines, nlp, save_file
 
 LIVE_IN = "Live_In"
 
@@ -55,13 +52,15 @@ def predict(infile):
         #     continue
         ents = nlpline.ents
         for ne in ents:
+
             w_relation = find_anch_ent_type(ents,ne.root,LOCTATION_STRS,[PERSON],10)
             if w_relation:
-                predictions.append((sent_id, "\t".join([w_relation.text, LIVE_IN, ne.text, "( " + sent_str + " )"])))
+                predictions.append((sent_id,w_relation.text,LIVE_IN,ne.text))
 
             w_relation = find_anch_ent_type(ents,ne.root,PERSON,LOCTATION_STRS,2)
             if w_relation:
-                predictions.append((sent_id, "\t".join([ne.text, LIVE_IN, w_relation.text, "( " + sent_str + " )"])))
+                predictions.append((sent_id,ne.text,LIVE_IN,w_relation.text))
+
 
 
     return predictions

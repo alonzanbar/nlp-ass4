@@ -28,6 +28,7 @@ def getStanfordEnts(sent_str):
     id_chunk=[]
     tagger = CoreNLPNERTagger(url='http://localhost:9000')
     parsed = tagger.parse(sent_str.split())
+    nltk
     pent_tuples = tagger.tag(sent_str.split())
     for i,(word, tag) in enumerate(pent_tuples):
         if tag != prev_tag and prev_tag != "" and tag!="":

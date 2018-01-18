@@ -1,36 +1,57 @@
+import logging
+
 import scipy
 import pickle
 import sys
-from ExtractFeatures import extract_sentence
-from spc import read_sentences_from_annotated, save_file
-from utils import load_map, convert_features
+from ExtractFeatures import get_DEV_pairs, extract_features_pairs
+from temp_code.spc import read_sentences_from_annotated, nlp
+from utils import load_map, convert_features, PERSON, save_file
 
+LIVE_IN = "Live_In"
 
+def get_en_type_from_pair(pair):
+
+    for en in pair[0]:
+        if en.label_ == PERSON:
+            p_en = en
+        else:
+            loc_en = en
+
+    return p_en,loc_en
 
 if __name__=="__main__":
     model_file_name=  sys.argv[1]
     map_file_name = sys.argv[2]
     predict_file = sys.argv[3]
-    length =  sys.argv[4] if len(sys.argv)>4 else -1
+    test_file_name = sys.argv[4]
+    length =  sys.argv[5] if len(sys.argv)>5 else -1
     length = int(length)
     model = model = pickle.load(open(model_file_name, 'rb'))
     featuremap = load_map(map_file_name)
     predictions =[]
     rev_featuremap = {v:k for k,v in featuremap.items()}
     match = total_preds = total_true = cnt = 0.0
-    for title, sent in read_sentences_from_annotated('data/DEV.annotations'):
+    for sent_title, sent_str in read_sentences_from_annotated(test_file_name):
+        sent_id,en1,rel,en2 = sent_title.split('\t')
+        if not rel == LIVE_IN:
+            continue
         if cnt>length and length!=-1 :
             break
         cnt+=1
-        samples = extract_sentence(title, sent.strip())
-        for y,x in samples:
+
+        doc = nlp(unicode(sent_str.strip()))
+        pairs = get_DEV_pairs(doc, sent_title)
+        samples = extract_features_pairs(doc, pairs)
+        for i,(y,x) in enumerate(samples):
             feature_v = convert_features(featuremap,x)
             v = scipy.sparse.csr_matrix(feature_v)
             pred = model.predict(v)
             pred_str = rev_featuremap[str(int(pred[0]))]
             if pred_str=='1':
+                p_en,loc_en = get_en_type_from_pair(pairs[i])
+                predictions.append((sent_id, p_en, rel, loc_en, sent_str))
                 if str(y)=='1':
-                    predictions.append ((title,sent))
+                    logging.info(sent_title + " " + sent_str)
                     match+=1
 
                 total_preds+=1

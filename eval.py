@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import time
 
-from spc import nlp, save_html
+from temp_code.spc import nlp, save_html
 
 
 def eval(goldfile,predfile):
@@ -41,12 +41,12 @@ def extract_pred_lines(file,lines):
     return bad_lines,good_lines
 
 def get_set_vec(goldfile):
-    sentvec = defaultdict(set)
+    sentvec = defaultdict(list)
     sum_s=0.0
     for sent in open(goldfile,'r'):
         line = sent.strip('\n').split("\t")
         if (line[2]=="Live_In"):
-            sentvec[line[0]].add("\t".join([line[0],line[1], line[2], line[3]]))
+            sentvec[line[0]].append("\t".join([line[0],line[1], line[2], line[3]]))
             sum_s+=1
     return sentvec,sum_s
 
