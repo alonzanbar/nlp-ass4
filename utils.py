@@ -20,5 +20,5 @@ def convert_features(fmap,feature_l):
 def save_file(outfile,predictions):
     with open(outfile,"w") as f :
         for set_id,en1,rel,en2,sent_str in predictions:
-            line = "\t".join([set_id,en1,rel, en2, "( " + sent_str + " )"])
+            line = "\t".join([set_id,en1.text,rel, en2.text, "( " + sent_str + " )"])
             f.writelines(line+"\n")
